@@ -2,7 +2,7 @@
 
 Shark Image is a VS Code extension for scanning a workspace image directory, previewing Sharp compression results in real time, and running a one-click batch compression pass.
 
-![screenshot of the preview panel showing sample images and settings](https://raw.githubusercontent.com/shezw/shark-image/main/resources/screenshot.png)
+![screenshot of the preview panel showing sample images and settings](https://raw.githubusercontent.com/shezw/shark-image-vsc-plugin/main/resources/screenshot.png)
 
 ## Features
 
