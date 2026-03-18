@@ -1,0 +1,1 @@
+Add up to three `.jpg` or `.jpeg` files here for live preview.

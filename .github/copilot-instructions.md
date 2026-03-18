@@ -1,0 +1,7 @@
+- Verify that `.github/copilot-instructions.md` exists.
+- Build this project as a publishable VS Code extension using TypeScript and `pnpm` in the current folder.
+- Keep the extension focused on Sharp-based image compression, live preview, and workspace configuration.
+- Maintain a resource sample directory at `resources/preview-samples` with separate folders for each supported image type.
+- Keep preview rows grouped by image type and limited to three sample images per type.
+- Keep `README.md` and package metadata aligned with current commands, settings, and publish steps.
+- Avoid installing unrelated VS Code extensions during setup.

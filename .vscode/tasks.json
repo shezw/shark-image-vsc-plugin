@@ -1,0 +1,17 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build Shark Image",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"./node_modules/typescript/bin/tsc",
+				"-p",
+				"./"
+			],
+			"isBackground": false,
+			"group": "build"
+		}
+	]
+}

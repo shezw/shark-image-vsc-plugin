@@ -1,0 +1,197 @@
+{
+  "name": "shark-image",
+  "displayName": "Shark Image",
+  "description": "Scan and compress workspace images with Sharp, including a live preview configuration panel.",
+  "version": "0.1.9",
+  "icon": "resources/preview-samples/png/app_icon_for_shark_image.png",
+  "publisher": "shezw",
+  "author": {
+    "name": "shezw",
+    "email": "hello@shezw.com"
+  },
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "images",
+    "sharp",
+    "compression",
+    "preview",
+    "assets"
+  ],
+  "activationEvents": [
+    "onCommand:sharkImage.openCompressionConfig",
+    "onCommand:sharkImage.compressWorkspaceImages",
+    "onCommand:sharkImage.compressFolder",
+    "onCommand:sharkImage.compressFile",
+    "onCommand:sharkImage.configureFromExplorer"
+  ],
+  "main": "./dist/extension.js",
+  "files": [
+    "dist/**/*.js",
+    "media",
+    "resources",
+    "runtime-deps/**",
+    "LICENSE",
+    "README.md"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "sharkImage.openCompressionConfig",
+        "category": "Shark Image",
+        "title": "open compression config"
+      },
+      {
+        "command": "sharkImage.compressWorkspaceImages",
+        "category": "Shark Image",
+        "title": "compress workspace images"
+      },
+      {
+        "command": "sharkImage.compressFolder",
+        "category": "Shark Image",
+        "title": "compress-all"
+      },
+      {
+        "command": "sharkImage.compressFile",
+        "category": "Shark Image",
+        "title": "compress"
+      },
+      {
+        "command": "sharkImage.configureFromExplorer",
+        "category": "Shark Image",
+        "title": "configure"
+      }
+    ],
+    "submenus": [
+      {
+        "id": "sharkImage.explorer",
+        "label": "shark-image"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "submenu": "sharkImage.explorer",
+          "when": "explorerResourceIsFolder || resourceScheme == file",
+          "group": "navigation@100"
+        }
+      ],
+      "sharkImage.explorer": [
+        {
+          "command": "sharkImage.compressFolder",
+          "when": "explorerResourceIsFolder",
+          "group": "1_main"
+        },
+        {
+          "command": "sharkImage.compressFile",
+          "when": "resourceScheme == file && !explorerResourceIsFolder && (resourceExtname == .jpg || resourceExtname == .jpeg || resourceExtname == .png || resourceExtname == .webp)",
+          "group": "1_main"
+        },
+        {
+          "command": "sharkImage.configureFromExplorer",
+          "group": "2_config"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Shark Image",
+      "properties": {
+        "sharkImage.resourceDirectory": {
+          "type": "string",
+          "default": "resources/preview-samples",
+          "description": "Relative workspace path to the image directory scanned for preview and batch compression."
+        },
+        "sharkImage.outputMode": {
+          "type": "string",
+          "enum": [
+            "overwrite",
+            "mirror"
+          ],
+          "default": "mirror",
+          "description": "Overwrite images in place or write compressed files into a mirrored output directory."
+        },
+        "sharkImage.outputDirectory": {
+          "type": "string",
+          "default": "resources/compressed",
+          "description": "Relative workspace path used when output mode is mirror."
+        },
+        "sharkImage.recursive": {
+          "type": "boolean",
+          "default": true,
+          "description": "Recursively scan nested folders under the configured resource directory."
+        },
+        "sharkImage.previewSampleCount": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 3,
+          "description": "How many images per type are used in the preview grid."
+        },
+        "sharkImage.jpegQuality": {
+          "type": "number",
+          "default": 82,
+          "minimum": 1,
+          "maximum": 100,
+          "description": "JPEG quality used for .jpg and .jpeg files."
+        },
+        "sharkImage.pngQuality": {
+          "type": "number",
+          "default": 85,
+          "minimum": 1,
+          "maximum": 100,
+          "description": "PNG palette quality passed to Sharp."
+        },
+        "sharkImage.pngCompressionLevel": {
+          "type": "number",
+          "default": 9,
+          "minimum": 0,
+          "maximum": 9,
+          "description": "PNG compression level passed to Sharp."
+        },
+        "sharkImage.webpQuality": {
+          "type": "number",
+          "default": 82,
+          "minimum": 1,
+          "maximum": 100,
+          "description": "WebP quality used for .webp files."
+        },
+        "sharkImage.webpEffort": {
+          "type": "number",
+          "default": 4,
+          "minimum": 0,
+          "maximum": 6,
+          "description": "WebP compression effort used by Sharp."
+        },
+        "sharkImage.preserveMetadata": {
+          "type": "boolean",
+          "default": false,
+          "description": "Preserve EXIF and related metadata during compression."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ./node_modules/typescript/bin/tsc -p ./",
+    "compile": "node ./node_modules/typescript/bin/tsc -p ./",
+    "watch": "node ./node_modules/typescript/bin/tsc -watch -p ./",
+    "version:fix": "node ./scripts/update-version.mjs fix",
+    "version:feature": "node ./scripts/update-version.mjs feature",
+    "version:major": "node ./scripts/update-version.mjs major",
+    "package": "node ./scripts/package-extension.mjs package",
+    "publish:vsce": "node ./scripts/package-extension.mjs publish"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/vscode": "^1.96.0",
+    "@vscode/vsce": "^3.2.2",
+    "typescript": "^5.7.2"
+  },
+  "dependencies": {
+    "sharp": "^0.33.5"
+  }
+}
