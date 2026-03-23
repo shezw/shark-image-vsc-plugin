@@ -2,7 +2,7 @@
   "name": "shark-image",
   "displayName": "Shark Image",
   "description": "Scan and compress workspace images with Sharp, including a live preview configuration panel.",
-  "version": "0.1.9",
+  "version": "0.2.1",
   "icon": "resources/preview-samples/png/app_icon_for_shark_image.png",
   "publisher": "shezw",
   "author": {
@@ -28,6 +28,7 @@
     "onCommand:sharkImage.compressWorkspaceImages",
     "onCommand:sharkImage.compressFolder",
     "onCommand:sharkImage.compressFile",
+    "onCommand:sharkImage.generateAppIconSet",
     "onCommand:sharkImage.configureFromExplorer"
   ],
   "main": "./dist/extension.js",
@@ -62,6 +63,11 @@
         "title": "compress"
       },
       {
+        "command": "sharkImage.generateAppIconSet",
+        "category": "Shark Image",
+        "title": "appicon"
+      },
+      {
         "command": "sharkImage.configureFromExplorer",
         "category": "Shark Image",
         "title": "configure"
@@ -90,6 +96,11 @@
         {
           "command": "sharkImage.compressFile",
           "when": "resourceScheme == file && !explorerResourceIsFolder && (resourceExtname == .jpg || resourceExtname == .jpeg || resourceExtname == .png || resourceExtname == .webp)",
+          "group": "1_main"
+        },
+        {
+          "command": "sharkImage.generateAppIconSet",
+          "when": "resourceScheme == file && !explorerResourceIsFolder && resourceExtname == .png",
           "group": "1_main"
         },
         {

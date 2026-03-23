@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { compressFolderImages, compressSingleImage, compressWorkspaceImages, isSupportedImageUri } from './imageService';
+import { compressFolderImages, compressSingleImage, compressWorkspaceImages, generateAppIconSet, isSupportedImageUri } from './imageService';
 import { CompressionPanel } from './panel';
 import { CompressionSettings, getSettings, normalizeSettings } from './settings';
 
@@ -155,6 +155,35 @@ async function runSingleFileCompression(
   }
 }
 
+async function runAppIconGeneration(outputChannel: vscode.OutputChannel, fileUri: vscode.Uri): Promise<void> {
+  const workspaceFolder = getWorkspaceFolder(fileUri);
+  if (!workspaceFolder) {
+    vscode.window.showErrorMessage('Select a PNG file inside the current workspace before generating AppIcon assets.');
+    return;
+  }
+
+  if (path.extname(fileUri.fsPath).toLowerCase() !== '.png') {
+    vscode.window.showErrorMessage('AppIcon generation only supports .png files.');
+    return;
+  }
+
+  const settings = normalizeSettings(getSettings(workspaceFolder), workspaceFolder);
+  outputChannel.show(true);
+  outputChannel.appendLine(`--- Shark Image AppIcon generation started: ${fileUri.fsPath} ---`);
+
+  try {
+    const summary = await generateAppIconSet(workspaceFolder, fileUri, settings, outputChannel);
+    const reducedBytes = summary.totalBytesBefore - summary.totalBytesAfter;
+    const message = `Generated ${summary.writtenFiles} AppIcon files in ${summary.outputDirectory}. Saved ${formatBytes(Math.max(reducedBytes, 0))}.`;
+    outputChannel.appendLine(message);
+    vscode.window.showInformationMessage(message);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    outputChannel.appendLine(`AppIcon generation failed: ${message}`);
+    vscode.window.showErrorMessage(`Shark Image AppIcon generation failed: ${message}`);
+  }
+}
+
 function buildContextSettings(resource: vscode.Uri | undefined): Partial<CompressionSettings> | undefined {
   if (!resource) {
     return undefined;
@@ -211,6 +240,9 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand('sharkImage.compressFile', async (resource: vscode.Uri) => {
       await runSingleFileCompression(outputChannel, resource);
+    }),
+    vscode.commands.registerCommand('sharkImage.generateAppIconSet', async (resource: vscode.Uri) => {
+      await runAppIconGeneration(outputChannel, resource);
     }),
     vscode.commands.registerCommand('sharkImage.configureFromExplorer', (resource: vscode.Uri | undefined) => {
       const workspaceFolder = getWorkspaceFolder(resource);

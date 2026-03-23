@@ -7,6 +7,66 @@ const SUPPORTED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp']);
 type SharpModule = typeof import('sharp');
 let cachedSharp: SharpModule | undefined;
 
+const APP_ICON_INPUT_SIZES = new Set([256, 512, 1024, 2048]);
+
+const APP_ICON_TARGETS = {
+  Android: [
+    { directory: ['mipmap-mdpi'], fileName: 'ic_launcher.png', size: 48 },
+    { directory: ['mipmap-hdpi'], fileName: 'ic_launcher.png', size: 72 },
+    { directory: ['mipmap-xhdpi'], fileName: 'ic_launcher.png', size: 96 },
+    { directory: ['mipmap-xxhdpi'], fileName: 'ic_launcher.png', size: 144 },
+    { directory: ['mipmap-xxxhdpi'], fileName: 'ic_launcher.png', size: 192 },
+    { directory: ['play-store'], fileName: 'ic_launcher_512.png', size: 512 }
+  ],
+  iOS: [
+    { directory: [], fileName: 'Icon-App-20x20@1x.png', size: 20 },
+    { directory: [], fileName: 'Icon-App-20x20@2x.png', size: 40 },
+    { directory: [], fileName: 'Icon-App-20x20@3x.png', size: 60 },
+    { directory: [], fileName: 'Icon-App-29x29@1x.png', size: 29 },
+    { directory: [], fileName: 'Icon-App-29x29@2x.png', size: 58 },
+    { directory: [], fileName: 'Icon-App-29x29@3x.png', size: 87 },
+    { directory: [], fileName: 'Icon-App-40x40@2x.png', size: 80 },
+    { directory: [], fileName: 'Icon-App-40x40@3x.png', size: 120 },
+    { directory: [], fileName: 'Icon-App-60x60@2x.png', size: 120 },
+    { directory: [], fileName: 'Icon-App-60x60@3x.png', size: 180 },
+    { directory: [], fileName: 'Icon-App-76x76.png', size: 76 },
+    { directory: [], fileName: 'Icon-App-76x76@2x.png', size: 152 },
+    { directory: [], fileName: 'Icon-App-83.5x83.5@2x.png', size: 167 },
+    { directory: [], fileName: 'Icon-App-1024x1024@1x.png', size: 1024 }
+  ],
+  macOS: [
+    { directory: [], fileName: 'icon_16x16.png', size: 16 },
+    { directory: [], fileName: 'icon_16x16@2x.png', size: 32 },
+    { directory: [], fileName: 'icon_32x32.png', size: 32 },
+    { directory: [], fileName: 'icon_32x32@2x.png', size: 64 },
+    { directory: [], fileName: 'icon_128x128.png', size: 128 },
+    { directory: [], fileName: 'icon_128x128@2x.png', size: 256 },
+    { directory: [], fileName: 'icon_256x256.png', size: 256 },
+    { directory: [], fileName: 'icon_256x256@2x.png', size: 512 },
+    { directory: [], fileName: 'icon_512x512.png', size: 512 },
+    { directory: [], fileName: 'icon_512x512@2x.png', size: 1024 }
+  ],
+  Windows: [
+    { directory: [], fileName: 'app_icon_16.png', size: 16 },
+    { directory: [], fileName: 'app_icon_24.png', size: 24 },
+    { directory: [], fileName: 'app_icon_32.png', size: 32 },
+    { directory: [], fileName: 'app_icon_48.png', size: 48 },
+    { directory: [], fileName: 'app_icon_64.png', size: 64 },
+    { directory: [], fileName: 'app_icon_128.png', size: 128 },
+    { directory: [], fileName: 'app_icon_256.png', size: 256 }
+  ],
+  Linux: [
+    { directory: [], fileName: 'app_icon_16.png', size: 16 },
+    { directory: [], fileName: 'app_icon_24.png', size: 24 },
+    { directory: [], fileName: 'app_icon_32.png', size: 32 },
+    { directory: [], fileName: 'app_icon_48.png', size: 48 },
+    { directory: [], fileName: 'app_icon_64.png', size: 64 },
+    { directory: [], fileName: 'app_icon_128.png', size: 128 },
+    { directory: [], fileName: 'app_icon_256.png', size: 256 },
+    { directory: [], fileName: 'app_icon_512.png', size: 512 }
+  ]
+} as const;
+
 export interface CompressionSummary {
   totalFiles: number;
   writtenFiles: number;
@@ -14,6 +74,13 @@ export interface CompressionSummary {
   totalBytesBefore: number;
   totalBytesAfter: number;
   errors: string[];
+}
+
+export interface AppIconGenerationSummary {
+  outputDirectory: string;
+  writtenFiles: number;
+  totalBytesBefore: number;
+  totalBytesAfter: number;
 }
 
 export interface PreviewItem {
@@ -107,6 +174,16 @@ function getMimeType(extension: string): string {
 
 function toDataUrl(buffer: Uint8Array, extension: string): string {
   return `data:${getMimeType(extension)};base64,${Buffer.from(buffer).toString('base64')}`;
+}
+
+async function resizePngBuffer(buffer: Uint8Array, size: number, preserveMetadata: boolean): Promise<Buffer> {
+  const sharp = getSharp();
+  let pipeline = sharp(buffer).rotate().resize(size, size, { fit: 'cover' });
+  if (preserveMetadata) {
+    pipeline = pipeline.withMetadata();
+  }
+
+  return pipeline.png().toBuffer();
 }
 
 async function pathExists(uri: vscode.Uri): Promise<boolean> {
@@ -267,6 +344,68 @@ export async function compressSingleImage(
 ): Promise<CompressionSummary> {
   const sourceDirectory = vscode.Uri.file(path.dirname(fileUri.fsPath));
   return compressImageUris(workspaceFolder, sourceDirectory, [fileUri], settings, outputChannel);
+}
+
+export async function generateAppIconSet(
+  workspaceFolder: vscode.WorkspaceFolder,
+  fileUri: vscode.Uri,
+  settings: CompressionSettings,
+  outputChannel: vscode.OutputChannel
+): Promise<AppIconGenerationSummary> {
+  const extension = path.extname(fileUri.fsPath).toLowerCase();
+  if (extension !== '.png') {
+    throw new Error('AppIcon generation only supports .png files.');
+  }
+
+  const sharp = getSharp();
+  const originalBuffer = await vscode.workspace.fs.readFile(fileUri);
+  const metadata = await sharp(originalBuffer).metadata();
+  const width = metadata.width ?? 0;
+  const height = metadata.height ?? 0;
+
+  if (!width || !height) {
+    throw new Error('Unable to read PNG dimensions.');
+  }
+
+  if (width !== height) {
+    throw new Error(`AppIcon source must be 1:1. Current size is ${width}x${height}.`);
+  }
+
+  if (!APP_ICON_INPUT_SIZES.has(width)) {
+    throw new Error('AppIcon source size must be one of 256, 512, 1024, or 2048 pixels.');
+  }
+
+  const appIconRoot = vscode.Uri.joinPath(fileUri.with({ path: path.dirname(fileUri.path) }), `AppIcon_${path.parse(fileUri.fsPath).name}`);
+  await vscode.workspace.fs.createDirectory(appIconRoot);
+
+  const summary: AppIconGenerationSummary = {
+    outputDirectory: appIconRoot.fsPath,
+    writtenFiles: 0,
+    totalBytesBefore: 0,
+    totalBytesAfter: 0
+  };
+
+  for (const [platform, targets] of Object.entries(APP_ICON_TARGETS)) {
+    for (const target of targets) {
+      const resizedBuffer = await resizePngBuffer(originalBuffer, target.size, settings.preserveMetadata);
+      const compressedBuffer = await compressBuffer(resizedBuffer, '.png', settings);
+      const targetDirectory = target.directory.reduce(
+        (current, segment) => vscode.Uri.joinPath(current, segment),
+        vscode.Uri.joinPath(appIconRoot, platform)
+      );
+
+      await vscode.workspace.fs.createDirectory(targetDirectory);
+      const targetFile = vscode.Uri.joinPath(targetDirectory, target.fileName);
+      await vscode.workspace.fs.writeFile(targetFile, compressedBuffer);
+
+      summary.totalBytesBefore += resizedBuffer.byteLength;
+      summary.totalBytesAfter += compressedBuffer.byteLength;
+      summary.writtenFiles += 1;
+      outputChannel.appendLine(`Generated ${platform}/${[...target.directory, target.fileName].join('/')} (${target.size}x${target.size})`);
+    }
+  }
+
+  return summary;
 }
 
 export async function buildPreviewPayload(

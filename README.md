@@ -11,6 +11,7 @@ Shark Image is a VS Code extension for scanning a workspace image directory, pre
 - Preview up to three built-in sample images per type on a single horizontal row.
 - Group `.jpg` and `.jpeg` samples under a single `JPEG` preview row.
 - Run one-click compression across the configured resource directory.
+- Generate a full AppIcon asset set from a compliant PNG source with one click.
 - Add an Explorer right-click submenu named `shark-image` for folders and supported image files.
 - Show both saved bytes and saved percentage in preview cards.
 - Support English and Chinese in the configuration page.
@@ -33,8 +34,17 @@ Right-click in the Explorer to open the `shark-image` submenu:
 
 - Folder: `compress-all`, `configure`
 - Supported image file: `compress`, `configure`
+- PNG file: `appicon`
 
 `configure` opens the preview page against the clicked folder, or the parent folder of the clicked image file.
+
+`appicon` creates an `AppIcon_<file-name>` directory beside the source PNG, then generates platform-specific icon PNG files for `Android`, `iOS`, `macOS`, `Windows`, and `Linux` using the current PNG compression settings.
+
+AppIcon source validation rules:
+
+- The source must be a `.png` file.
+- The image must be square (`1:1`).
+- The width and height must be one of `256`, `512`, `1024`, or `2048`.
 
 ## Default directories
 
