@@ -2,8 +2,8 @@
   "name": "shark-image",
   "displayName": "Shark Image",
   "description": "Scan and compress workspace images with Sharp, including a live preview configuration panel.",
-  "version": "0.2.1",
-  "icon": "resources/preview-samples/png/app_icon_for_shark_image.png",
+  "version": "0.3.1",
+  "icon": "resources/preview-samples/png/app_icon_for_shark_image_rd_25.png",
   "publisher": "shezw",
   "author": {
     "name": "shezw",
@@ -29,6 +29,16 @@
     "onCommand:sharkImage.compressFolder",
     "onCommand:sharkImage.compressFile",
     "onCommand:sharkImage.generateAppIconSet",
+    "onCommand:sharkImage.quickRound.5",
+    "onCommand:sharkImage.quickRound.10",
+    "onCommand:sharkImage.quickRound.15",
+    "onCommand:sharkImage.quickRound.20",
+    "onCommand:sharkImage.quickRound.25",
+    "onCommand:sharkImage.quickRound.30",
+    "onCommand:sharkImage.quickRound.35",
+    "onCommand:sharkImage.quickRound.40",
+    "onCommand:sharkImage.quickRound.45",
+    "onCommand:sharkImage.quickRound.50",
     "onCommand:sharkImage.configureFromExplorer"
   ],
   "main": "./dist/extension.js",
@@ -68,6 +78,56 @@
         "title": "appicon"
       },
       {
+        "command": "sharkImage.quickRound.5",
+        "category": "Shark Image",
+        "title": "5%"
+      },
+      {
+        "command": "sharkImage.quickRound.10",
+        "category": "Shark Image",
+        "title": "10%"
+      },
+      {
+        "command": "sharkImage.quickRound.15",
+        "category": "Shark Image",
+        "title": "15%"
+      },
+      {
+        "command": "sharkImage.quickRound.20",
+        "category": "Shark Image",
+        "title": "20%"
+      },
+      {
+        "command": "sharkImage.quickRound.25",
+        "category": "Shark Image",
+        "title": "25%"
+      },
+      {
+        "command": "sharkImage.quickRound.30",
+        "category": "Shark Image",
+        "title": "30%"
+      },
+      {
+        "command": "sharkImage.quickRound.35",
+        "category": "Shark Image",
+        "title": "35%"
+      },
+      {
+        "command": "sharkImage.quickRound.40",
+        "category": "Shark Image",
+        "title": "40%"
+      },
+      {
+        "command": "sharkImage.quickRound.45",
+        "category": "Shark Image",
+        "title": "45%"
+      },
+      {
+        "command": "sharkImage.quickRound.50",
+        "category": "Shark Image",
+        "title": "50%"
+      },
+      {
         "command": "sharkImage.configureFromExplorer",
         "category": "Shark Image",
         "title": "configure"
@@ -77,6 +137,10 @@
       {
         "id": "sharkImage.explorer",
         "label": "shark-image"
+      },
+      {
+        "id": "sharkImage.quickRound",
+        "label": "快速圆角"
       }
     ],
     "menus": {
@@ -104,8 +168,55 @@
           "group": "1_main"
         },
         {
+          "submenu": "sharkImage.quickRound",
+          "when": "resourceScheme == file && !explorerResourceIsFolder && resourceExtname == .png",
+          "group": "1_main"
+        },
+        {
           "command": "sharkImage.configureFromExplorer",
           "group": "2_config"
+        }
+      ],
+      "sharkImage.quickRound": [
+        {
+          "command": "sharkImage.quickRound.5",
+          "group": "1_sizes"
+        },
+        {
+          "command": "sharkImage.quickRound.10",
+          "group": "1_sizes"
+        },
+        {
+          "command": "sharkImage.quickRound.15",
+          "group": "1_sizes"
+        },
+        {
+          "command": "sharkImage.quickRound.20",
+          "group": "1_sizes"
+        },
+        {
+          "command": "sharkImage.quickRound.25",
+          "group": "1_sizes"
+        },
+        {
+          "command": "sharkImage.quickRound.30",
+          "group": "1_sizes"
+        },
+        {
+          "command": "sharkImage.quickRound.35",
+          "group": "1_sizes"
+        },
+        {
+          "command": "sharkImage.quickRound.40",
+          "group": "1_sizes"
+        },
+        {
+          "command": "sharkImage.quickRound.45",
+          "group": "1_sizes"
+        },
+        {
+          "command": "sharkImage.quickRound.50",
+          "group": "1_sizes"
         }
       ]
     },

@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { compressFolderImages, compressSingleImage, compressWorkspaceImages, generateAppIconSet, isSupportedImageUri } from './imageService';
+import { QUICK_ROUND_PERCENTAGES, compressFolderImages, compressSingleImage, compressWorkspaceImages, generateAppIconSet, generateRoundedPng, isSupportedImageUri } from './imageService';
 import { CompressionPanel } from './panel';
 import { CompressionSettings, getSettings, normalizeSettings } from './settings';
 
@@ -184,6 +184,34 @@ async function runAppIconGeneration(outputChannel: vscode.OutputChannel, fileUri
   }
 }
 
+async function runQuickRound(outputChannel: vscode.OutputChannel, fileUri: vscode.Uri, radiusPercentage: number): Promise<void> {
+  const workspaceFolder = getWorkspaceFolder(fileUri);
+  if (!workspaceFolder) {
+    vscode.window.showErrorMessage('Select a PNG file inside the current workspace before generating a rounded PNG.');
+    return;
+  }
+
+  if (path.extname(fileUri.fsPath).toLowerCase() !== '.png') {
+    vscode.window.showErrorMessage('Quick round only supports .png files.');
+    return;
+  }
+
+  const settings = normalizeSettings(getSettings(workspaceFolder), workspaceFolder);
+  outputChannel.show(true);
+  outputChannel.appendLine(`--- Shark Image quick round started: ${fileUri.fsPath} (${radiusPercentage}%) ---`);
+
+  try {
+    const summary = await generateRoundedPng(workspaceFolder, fileUri, radiusPercentage, settings, outputChannel);
+    const message = `Generated rounded PNG ${path.basename(summary.outputFile)} with ${summary.radiusPercentage}% radius (${summary.radiusPixels.toFixed(2)} px).`;
+    outputChannel.appendLine(message);
+    vscode.window.showInformationMessage(message);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    outputChannel.appendLine(`Quick round failed: ${message}`);
+    vscode.window.showErrorMessage(`Shark Image quick round failed: ${message}`);
+  }
+}
+
 function buildContextSettings(resource: vscode.Uri | undefined): Partial<CompressionSettings> | undefined {
   if (!resource) {
     return undefined;
@@ -209,9 +237,15 @@ function buildContextSettings(resource: vscode.Uri | undefined): Partial<Compres
 export function activate(context: vscode.ExtensionContext): void {
   const outputChannel = vscode.window.createOutputChannel('Shark Image');
   const extensionVersion = String(context.extension.packageJSON.version ?? '0.0.0');
+  const quickRoundCommands = QUICK_ROUND_PERCENTAGES.map((percentage) =>
+    vscode.commands.registerCommand(`sharkImage.quickRound.${percentage}`, async (resource: vscode.Uri) => {
+      await runQuickRound(outputChannel, resource, percentage);
+    })
+  );
 
   context.subscriptions.push(
     outputChannel,
+    ...quickRoundCommands,
     vscode.commands.registerCommand('sharkImage.openCompressionConfig', () => {
       const workspaceFolder = getWorkspaceFolder();
       if (!workspaceFolder) {

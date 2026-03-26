@@ -8,6 +8,7 @@ type SharpModule = typeof import('sharp');
 let cachedSharp: SharpModule | undefined;
 
 const APP_ICON_INPUT_SIZES = new Set([256, 512, 1024, 2048]);
+export const QUICK_ROUND_PERCENTAGES = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50] as const;
 
 const APP_ICON_TARGETS = {
   Android: [
@@ -79,6 +80,14 @@ export interface CompressionSummary {
 export interface AppIconGenerationSummary {
   outputDirectory: string;
   writtenFiles: number;
+  totalBytesBefore: number;
+  totalBytesAfter: number;
+}
+
+export interface RoundedPngSummary {
+  outputFile: string;
+  radiusPercentage: number;
+  radiusPixels: number;
   totalBytesBefore: number;
   totalBytesAfter: number;
 }
@@ -184,6 +193,27 @@ async function resizePngBuffer(buffer: Uint8Array, size: number, preserveMetadat
   }
 
   return pipeline.png().toBuffer();
+}
+
+function formatRoundedPercentage(radiusPercentage: number): string {
+  return String(radiusPercentage).padStart(2, '0');
+}
+
+function escapeSvgAttribute(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function createRoundedMaskSvg(width: number, height: number, radiusPixels: number): Buffer {
+  const safeWidth = Math.max(width, 1);
+  const safeHeight = Math.max(height, 1);
+  const safeRadius = Math.max(0, Math.min(radiusPixels, Math.min(safeWidth, safeHeight) / 2));
+  const svg = [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${escapeSvgAttribute(String(safeWidth))}" height="${escapeSvgAttribute(String(safeHeight))}" viewBox="0 0 ${escapeSvgAttribute(String(safeWidth))} ${escapeSvgAttribute(String(safeHeight))}">`,
+    `<rect x="0" y="0" width="${escapeSvgAttribute(String(safeWidth))}" height="${escapeSvgAttribute(String(safeHeight))}" rx="${escapeSvgAttribute(String(safeRadius))}" ry="${escapeSvgAttribute(String(safeRadius))}" fill="white"/>`,
+    '</svg>'
+  ].join('');
+
+  return Buffer.from(svg, 'utf8');
 }
 
 async function pathExists(uri: vscode.Uri): Promise<boolean> {
@@ -406,6 +436,63 @@ export async function generateAppIconSet(
   }
 
   return summary;
+}
+
+export async function generateRoundedPng(
+  workspaceFolder: vscode.WorkspaceFolder,
+  fileUri: vscode.Uri,
+  radiusPercentage: number,
+  settings: CompressionSettings,
+  outputChannel: vscode.OutputChannel
+): Promise<RoundedPngSummary> {
+  void workspaceFolder;
+
+  const extension = path.extname(fileUri.fsPath).toLowerCase();
+  if (extension !== '.png') {
+    throw new Error('Quick round only supports .png files.');
+  }
+
+  if (!QUICK_ROUND_PERCENTAGES.includes(radiusPercentage as typeof QUICK_ROUND_PERCENTAGES[number])) {
+    throw new Error('Quick round percentage must be one of 5, 10, 15, 20, 25, 30, 35, 40, 45, or 50.');
+  }
+
+  const sharp = getSharp();
+  const originalBuffer = await vscode.workspace.fs.readFile(fileUri);
+  const metadata = await sharp(originalBuffer).metadata();
+  const width = metadata.width ?? 0;
+  const height = metadata.height ?? 0;
+
+  if (!width || !height) {
+    throw new Error('Unable to read PNG dimensions.');
+  }
+
+  const shortEdge = Math.min(width, height);
+  const radiusPixels = Math.min(shortEdge * (radiusPercentage / 100), shortEdge * 0.5);
+  const roundedMask = createRoundedMaskSvg(width, height, radiusPixels);
+
+  let pipeline = sharp(originalBuffer)
+    .rotate()
+    .ensureAlpha()
+    .composite([{ input: roundedMask, blend: 'dest-in' }]);
+
+  if (settings.preserveMetadata) {
+    pipeline = pipeline.withMetadata();
+  }
+
+  const roundedBuffer = await pipeline.png({ quality: settings.pngQuality, compressionLevel: settings.pngCompressionLevel }).toBuffer();
+  const parsedPath = path.parse(fileUri.fsPath);
+  const outputFile = vscode.Uri.joinPath(fileUri.with({ path: path.dirname(fileUri.path) }), `${parsedPath.name}_rd_${formatRoundedPercentage(radiusPercentage)}.png`);
+
+  await vscode.workspace.fs.writeFile(outputFile, roundedBuffer);
+  outputChannel.appendLine(`Generated rounded PNG ${fileUri.fsPath} -> ${outputFile.fsPath} (${radiusPercentage}%, ${radiusPixels.toFixed(2)}px)`);
+
+  return {
+    outputFile: outputFile.fsPath,
+    radiusPercentage,
+    radiusPixels,
+    totalBytesBefore: originalBuffer.byteLength,
+    totalBytesAfter: roundedBuffer.byteLength
+  };
 }
 
 export async function buildPreviewPayload(
