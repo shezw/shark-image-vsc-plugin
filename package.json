@@ -2,7 +2,7 @@
   "name": "shark-image",
   "displayName": "Shark Image",
   "description": "Scan and compress workspace images with Sharp, including a live preview configuration panel.",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "icon": "resources/preview-samples/png/app_icon_for_shark_image_rd_25.png",
   "publisher": "shezw",
   "author": {
