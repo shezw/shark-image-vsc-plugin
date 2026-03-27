@@ -12,6 +12,7 @@ Shark Image is a VS Code extension for scanning a workspace image directory, pre
 - Group `.jpg` and `.jpeg` samples under a single `JPEG` preview row.
 - Run one-click compression across the configured resource directory.
 - Generate a full AppIcon asset set from a compliant PNG source with one click.
+- Convert PNG files to RGB or RGBA channel modes from the Explorer.
 - Generate rounded-rectangle PNG variants from the Explorer with fixed quick-round presets.
 - Add an Explorer right-click submenu named `shark-image` for folders and supported image files.
 - Show both saved bytes and saved percentage in preview cards.
@@ -36,11 +37,18 @@ Right-click in the Explorer to open the `shark-image` submenu:
 - Folder: `compress-all`, `configure`
 - Supported image file: `compress`, `configure`
 - PNG file: `appicon`
+- PNG file: `toRGBA`, `toRGB`
 - PNG file: `快速圆角` -> `5%`, `10%`, `15%`, `20%`, `25%`, `30%`, `35%`, `40%`, `45%`, `50%`
 
 `configure` opens the preview page against the clicked folder, or the parent folder of the clicked image file.
 
 `appicon` creates an `AppIcon_<file-name>` directory beside the source PNG, then generates platform-specific icon PNG files for `Android`, `iOS`, `macOS`, `Windows`, and `Linux` using the current PNG compression settings.
+
+`toRGBA` writes `<name>_rgba.png` beside the source PNG, forcing an alpha channel while keeping the PNG format, dimensions, and other image content unchanged.
+
+`toRGB` writes `<name>_rgb.png` beside the source PNG, removing the alpha channel while keeping the PNG format and dimensions unchanged.
+
+If the PNG contains fully transparent pixels, `toRGB` opens a color picker panel first so you can choose the background color used during the RGB conversion.
 
 `快速圆角` applies an anti-aliased rounded-rectangle mask to the selected PNG and writes the result into the same directory as `<name>_rd_<rr>.png`, where `<rr>` is the two-digit percentage such as `05`, `10`, or `50`.
 

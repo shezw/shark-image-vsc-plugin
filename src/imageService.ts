@@ -92,6 +92,20 @@ export interface RoundedPngSummary {
   totalBytesAfter: number;
 }
 
+export interface PngColorModeSummary {
+  outputFile: string;
+  colorMode: 'rgb' | 'rgba';
+  outputChannels: number;
+  outputHasAlpha: boolean;
+  totalBytesBefore: number;
+  totalBytesAfter: number;
+}
+
+export interface PngTransparencyInfo {
+  hasTransparency: boolean;
+  hasFullyTransparentPixel: boolean;
+}
+
 export interface PreviewItem {
   fileName: string;
   extension: string;
@@ -492,6 +506,119 @@ export async function generateRoundedPng(
     radiusPixels,
     totalBytesBefore: originalBuffer.byteLength,
     totalBytesAfter: roundedBuffer.byteLength
+  };
+}
+
+export async function inspectPngTransparency(fileUri: vscode.Uri): Promise<PngTransparencyInfo> {
+  const extension = path.extname(fileUri.fsPath).toLowerCase();
+  if (extension !== '.png') {
+    throw new Error('Transparency inspection only supports .png files.');
+  }
+
+  const sharp = getSharp();
+  const originalBuffer = await vscode.workspace.fs.readFile(fileUri);
+  const stats = await sharp(originalBuffer).ensureAlpha().stats();
+  const alphaChannel = stats.channels[3];
+  const minAlpha = alphaChannel?.min ?? 255;
+
+  return {
+    hasTransparency: minAlpha < 255,
+    hasFullyTransparentPixel: minAlpha === 0
+  };
+}
+
+async function inspectPngBufferColorMode(buffer: Uint8Array): Promise<{ channels: number; hasAlpha: boolean }> {
+  const sharp = getSharp();
+  const metadata = await sharp(buffer).metadata();
+  return {
+    channels: metadata.channels ?? 0,
+    hasAlpha: metadata.hasAlpha === true
+  };
+}
+
+async function inspectPngFileColorMode(fileUri: vscode.Uri): Promise<{ channels: number; hasAlpha: boolean }> {
+  const sharp = getSharp();
+  const buffer = await vscode.workspace.fs.readFile(fileUri);
+  const metadata = await sharp(buffer).metadata();
+
+  return {
+    channels: metadata.channels ?? 0,
+    hasAlpha: metadata.hasAlpha === true
+  };
+}
+
+function assertPngColorModeInfo(
+  fileUri: vscode.Uri,
+  colorMode: 'rgb' | 'rgba',
+  info: { channels: number; hasAlpha: boolean }
+): void {
+  if (colorMode === 'rgba' && (!info.hasAlpha || info.channels !== 4)) {
+    throw new Error(`toRGBA target file is not RGBA. target=${fileUri.fsPath}, channels=${info.channels}, hasAlpha=${info.hasAlpha}`);
+  }
+
+  if (colorMode === 'rgb' && (info.hasAlpha || info.channels !== 3)) {
+    throw new Error(`toRGB target file is not RGB. target=${fileUri.fsPath}, channels=${info.channels}, hasAlpha=${info.hasAlpha}`);
+  }
+}
+
+export async function convertPngColorMode(
+  workspaceFolder: vscode.WorkspaceFolder,
+  fileUri: vscode.Uri,
+  colorMode: 'rgb' | 'rgba',
+  backgroundColor: string | undefined,
+  settings: CompressionSettings,
+  outputChannel: vscode.OutputChannel
+): Promise<PngColorModeSummary> {
+  void workspaceFolder;
+
+  const extension = path.extname(fileUri.fsPath).toLowerCase();
+  if (extension !== '.png') {
+    throw new Error(`to${colorMode.toUpperCase()} only supports .png files.`);
+  }
+
+  const sharp = getSharp();
+  const originalBuffer = await vscode.workspace.fs.readFile(fileUri);
+  let pipeline = sharp(originalBuffer).rotate().toColourspace('srgb');
+
+  if (colorMode === 'rgba') {
+    pipeline = pipeline.ensureAlpha();
+  } else {
+    pipeline = backgroundColor ? pipeline.flatten({ background: backgroundColor }) : pipeline.removeAlpha();
+  }
+
+  if (settings.preserveMetadata) {
+    pipeline = pipeline.withMetadata();
+  }
+
+  const rawBuffer = await pipeline.raw().toBuffer({ resolveWithObject: true });
+  outputChannel.appendLine(`Prepared raw ${colorMode.toUpperCase()} pixels for target ${fileUri.fsPath} with channels=${rawBuffer.info.channels}, width=${rawBuffer.info.width}, height=${rawBuffer.info.height}`);
+
+  const convertedBuffer = await sharp(rawBuffer.data, {
+    raw: {
+      width: rawBuffer.info.width,
+      height: rawBuffer.info.height,
+      channels: rawBuffer.info.channels
+    }
+  }).png({ compressionLevel: settings.pngCompressionLevel, palette: false }).toBuffer();
+  const parsedPath = path.parse(fileUri.fsPath);
+  const outputFile = vscode.Uri.joinPath(fileUri.with({ path: path.dirname(fileUri.path) }), `${parsedPath.name}_${colorMode}.png`);
+  const encodedInfo = await inspectPngBufferColorMode(convertedBuffer);
+
+  outputChannel.appendLine(`Prepared encoded ${colorMode.toUpperCase()} buffer for target ${outputFile.fsPath} with channels=${encodedInfo.channels}, hasAlpha=${encodedInfo.hasAlpha}`);
+
+  await vscode.workspace.fs.writeFile(outputFile, convertedBuffer);
+  const outputInfo = await inspectPngFileColorMode(outputFile);
+  outputChannel.appendLine(`Generated ${colorMode.toUpperCase()} PNG ${fileUri.fsPath} -> ${outputFile.fsPath}`);
+  outputChannel.appendLine(`Detected target file ${outputFile.fsPath} with channels=${outputInfo.channels}, hasAlpha=${outputInfo.hasAlpha}`);
+  assertPngColorModeInfo(outputFile, colorMode, outputInfo);
+
+  return {
+    outputFile: outputFile.fsPath,
+    colorMode,
+    outputChannels: outputInfo.channels,
+    outputHasAlpha: outputInfo.hasAlpha,
+    totalBytesBefore: originalBuffer.byteLength,
+    totalBytesAfter: convertedBuffer.byteLength
   };
 }
 
